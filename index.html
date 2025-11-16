@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rana AI</title>
+    <!-- Load Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Marked.js from CDN for secure Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #e6edf3;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 24px;
+            height: 24px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+        }
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .is-generating {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        /* Custom styles for rendered markdown */
+        .markdown-content pre {
+            background-color: #1f2937;
+            color: #e6edf3;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+        .markdown-content code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            background-color: #374151;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+        }
+        .chat-message-ai {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+        }
+        .chat-message-ai .message-content {
+            flex-grow: 1;
+        }
+        /* Styles for the collapsible sidebar */
+        #chat-history-sidebar {
+            transition: width 0.3s ease-in-out;
+        }
+        #chat-history-sidebar.minimized {
+            width: 4rem; /* Fixed width for minimized state */
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .minimized .history-content {
+            display: none;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Main Container with Flex Layout -->
+    <div class="flex flex-col min-h-screen">
+
+        <!-- Navigation Bar -->
+        <header class="p-4 md:px-8 border-b border-gray-700 flex justify-between items-center">
+            <a href="#" id="home-link" class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-sky-500 to-blue-600">
+                Rana AI
+            </a>
+            <nav class="hidden md:flex space-x-6 text-gray-400">
+                <a href="#" id="features-link" class="hover:text-white transition-colors duration-200">Features</a>
+                <a href="#" id="case-studies-link" class="hover:text-white transition-colors duration-200">Case Studies</a>
+                <a href="#" id="chat-link" class="hover:text-white transition-colors duration-200">Agent Chat</a>
+                <a href="#" id="contact-link" class="hover:text-white transition-colors duration-200">Contact</a>
+            </nav>
+            <a href="#" class="md:hidden text-gray-400 hover:text-white transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+            </a>
+        </header>
+
+        <!-- Page Content Container -->
+        <div class="flex-grow flex p-4 md:p-8">
+
+            <!-- Hero Section (Visible by default) -->
+            <main id="hero-section" class="flex-grow max-w-4xl text-center mx-auto">
+                <div class="relative inline-block px-3 py-1 mb-4 text-sm font-medium text-blue-300 bg-blue-900 bg-opacity-30 rounded-full border border-blue-600/50">
+                    Your AI partner is here
+                </div>
+                <h1 class="text-4xl md:text-6xl font-extrabold leading-tight text-white mb-4 drop-shadow-md">
+                    The Future of Intelligence, <br class="hidden md:inline">Simplified for You
+                </h1>
+                <p class="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                    Rana AI brings powerful, intuitive solutions to your fingertips. Streamline workflows, automate tasks, and unlock new possibilities with our cutting-edge technology.
+                </p>
+                <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                    <a href="#" id="get-started-btn" class="px-8 py-3 bg-gradient-to-r from-teal-500 to-blue-600 text-white font-semibold rounded-full shadow-lg hover:from-teal-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105">
+                        Get Started
+                    </a>
+                    <a href="#" id="learn-more-btn" class="px-8 py-3 bg-gray-800 text-gray-300 font-semibold rounded-full border border-gray-700 hover:bg-gray-700 transition-colors duration-300 transform hover:scale-105">
+                        Learn More
+                    </a>
+                </div>
+            </main>
+
+            <!-- AI Agent Chat Section (Hidden by default) -->
+            <section id="chat-section" class="hidden flex-grow flex flex-col md:flex-row bg-gray-800 rounded-lg shadow-xl border border-gray-700">
+
+                <!-- Chat History Sidebar -->
+                <div id="chat-history-sidebar" class="w-full md:w-1/4 flex-shrink-0 p-4 border-b md:border-b-0 md:border-r border-gray-700 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-white">Chat History</h2>
+                        <button id="toggle-history-btn" class="text-gray-400 hover:text-white transition-colors duration-200">
+                             <svg id="chevron-left" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                            <svg id="chevron-right" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="history-content flex-grow flex flex-col">
+                        <div class="text-xs text-gray-400 mb-4">Your ID: <span id="user-id-display">Loading...</span></div>
+                        <button id="new-chat-btn" class="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-200 mb-4">
+                            + New Chat
+                        </button>
+                        <div id="history-list" class="flex-grow overflow-y-auto space-y-2">
+                            <!-- Chat history items will be loaded here -->
+                            <div class="text-center text-gray-500 py-4">No chats yet.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Chat Container -->
+                <div class="w-full md:w-3/4 flex flex-col flex-grow">
+                    <div class="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-700">
+                        <h2 class="text-xl font-bold text-white">Rana AI Agent</h2>
+                        <button id="close-chat" class="text-gray-400 hover:text-white transition-colors duration-200">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Chat Messages Container -->
+                    <div id="chat-messages" class="flex-grow overflow-y-auto space-y-4 p-4 scroll-smooth">
+                        <!-- Chat messages will be dynamically added here -->
+                    </div>
+
+                    <!-- Chat Input Area -->
+                    <form id="chat-form" class="flex-shrink-0 flex flex-col p-4 border-t border-gray-700">
+                        <div class="flex items-center">
+                             <!-- Action buttons container -->
+                            <div class="flex-shrink-0 flex space-x-2 mr-2">
+                                <button type="button" id="summarize-btn" class="p-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-full hover:bg-gray-700" title="Summarize Chat">
+                                    <span class="text-lg">✨</span>
+                                </button>
+                                <button type="button" id="upload-btn" class="p-2 text-gray-400 hover:text-white transition-colors duration-200 rounded-full hover:bg-gray-700" title="Upload Image">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13.5" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <input type="file" id="file-input" class="hidden" accept="image/*">
+
+                            <input type="text" id="chat-input" placeholder="Type your message or upload an image..." class="flex-grow bg-gray-700 text-white placeholder-gray-400 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
+                            
+                            <button type="submit" id="send-btn" class="ml-2 px-6 py-2 bg-gradient-to-r from-teal-500 to-blue-600 text-white rounded-full font-semibold hover:from-teal-600 hover:to-blue-700 transition-all duration-200">
+                                Send
+                            </button>
+                        </div>
+                        <div id="image-preview-container" class="mt-2 hidden">
+                           <div class="flex items-center space-x-2 p-2 bg-gray-700 rounded-lg">
+                               <img id="image-preview" class="h-10 w-10 object-cover rounded-md" src="" alt="Image Preview">
+                               <span id="image-name" class="text-sm text-gray-300 truncate flex-1"></span>
+                               <button type="button" id="remove-image-btn" class="text-gray-400 hover:text-white">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                           </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Future Features Section (Hidden by default) -->
+            <section id="features-section" class="hidden w-full max-w-4xl mx-auto rounded-lg p-6 md:p-12">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4">
+                        What's Next for Rana AI
+                    </h2>
+                    <p class="text-md md:text-xl text-gray-300">
+                        Our AI is constantly evolving. Here's a glimpse into the future of what Rana can do for you.
+                    </p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Feature Card 1 -->
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-900/50 text-blue-300 mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Smart Workflows</h3>
+                        <p class="text-gray-400 text-sm">Automate complex tasks and routine processes with intelligent, self-learning workflows. Rana AI will adapt to your needs.</p>
+                    </div>
+
+                    <!-- Feature Card 2 -->
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-900/50 text-blue-300 mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0-3-4.033-3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.033-3-9s1.343-9 3-9m-9 9h6" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Advanced Conversation</h3>
+                        <p class="text-gray-400 text-sm">Engage in more natural, contextual, and multi-turn conversations with a model that truly understands your intent.</p>
+                    </div>
+
+                    <!-- Feature Card 3 -->
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-900/50 text-blue-300 mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Personalized Knowledge</h3>
+                        <p class="text-gray-400 text-sm">Rana AI will learn from your interactions and preferences to provide personalized, context-aware information and assistance.</p>
+                    </div>
+                </div>
+
+                <div class="text-center mt-12">
+                    <a href="#" id="start-chat-from-features" class="px-8 py-3 bg-gradient-to-r from-teal-500 to-blue-600 text-white font-semibold rounded-full shadow-lg hover:from-teal-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105">
+                        Start Chatting Now
+                    </a>
+                </div>
+            </section>
+
+            <!-- Case Studies Section (Hidden by default) -->
+            <section id="case-studies-section" class="hidden w-full max-w-4xl mx-auto rounded-lg p-6 md:p-12">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4">
+                        Success Stories
+                    </h2>
+                    <p class="text-md md:text-xl text-gray-300">
+                        See how Rana AI has helped businesses achieve their goals.
+                    </p>
+                </div>
+                
+                <div class="space-y-8">
+                    <!-- Case Study 1 -->
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <p class="text-sm font-bold text-blue-400 mb-2">AI-Powered Content Generation</p>
+                        <h3 class="text-2xl font-bold text-white mb-2">Streamlining Marketing Workflow</h3>
+                        <p class="text-gray-400">A global marketing agency used Rana AI to automate content creation for their social media campaigns, reducing their time-to-market by 40%.</p>
+                        <div class="mt-4 flex items-center">
+                            <p class="text-gray-500 text-sm italic">"Rana AI is a game-changer for our team. We can now focus on strategy instead of repetitive tasks." - Jane Doe, CMO</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Case Study 2 -->
+                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+                        <p class="text-sm font-bold text-blue-400 mb-2">Automated Code Debugging</p>
+                        <h3 class="text-2xl font-bold text-white mb-2">Accelerating Software Development</h3>
+                        <p class="text-gray-400">A small tech startup integrated Rana AI into their development environment, cutting down their debugging time by over 50% and improving code quality.</p>
+                        <div class="mt-4 flex items-center">
+                            <p class="text-gray-500 text-sm italic">"The accuracy and speed of Rana AI's code suggestions are incredible. It's like having another senior dev on the team." - John Smith, CTO</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Contact Section (Hidden by default) -->
+            <section id="contact-section" class="hidden w-full max-w-2xl mx-auto rounded-lg p-6 md:p-12">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4">
+                        Contact Us
+                    </h2>
+                    <p class="text-md md:text-xl text-gray-300">
+                        Have a question, feedback, or need to report an issue? We're here to help.
+                    </p>
+                </div>
+                
+                <form id="contact-form" class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg space-y-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-400">Name</label>
+                        <input type="text" id="name" name="name" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-400">Email</label>
+                        <input type="email" id="email" name="email" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="subject" class="block text-sm font-medium text-gray-400">Subject</label>
+                        <select id="subject" name="subject" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="">Select a subject</option>
+                            <option value="general">General Inquiry</option>
+                            <option value="feedback">Feedback</option>
+                            <option value="issue">Report an Issue</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="message" class="block text-sm font-medium text-gray-400">Message</label>
+                        <textarea id="message" name="message" rows="4" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
+                    </div>
+                    <div class="pt-4">
+                        <button type="submit" class="w-full px-8 py-3 bg-gradient-to-r from-teal-500 to-blue-600 text-white font-semibold rounded-full shadow-lg hover:from-teal-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105">
+                            Send Message
+                        </button>
+                    </div>
+                </form>
+
+                <div id="form-success-message" class="hidden mt-4 text-center p-4 rounded-xl bg-green-900/50 text-green-300 border border-green-600">
+                    <p>Thank you for your message! We will get back to you shortly.</p>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Footer -->
+        <footer class="p-4 md:px-8 border-t border-gray-700 text-center text-gray-400 text-sm">
+            <p>&copy; 2025 Rana AI. All rights reserved.</p>
+        </footer>
+
+    </div>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, getDoc, getDocs, doc, updateDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase access
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        setLogLevel('debug'); // Enable debug logging for Firestore
+
+        let userId;
+        let currentChatId = null;
+        let isHistoryMinimized = false;
+        let isChatInitialized = false;
+        let uploadedImageData = null;
+
+        // Configuration for the Gemini API
+        const API_KEY = "";
+        const TEXT_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=" + API_KEY;
+        const IMAGE_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=" + API_KEY;
+        const IMAGETEXT_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=" + API_KEY;
+        const TTS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=" + API_KEY;
+
+        // --- Helper Functions ---
+        
+        // Helper function to convert Base64 to ArrayBuffer
+        const base64ToArrayBuffer = (base64) => {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        // Helper function to convert PCM audio to a WAV file Blob
+        const pcmToWav = (pcmData, sampleRate) => {
+            const pcm16 = new Int16Array(pcmData);
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+
+            // WAV header
+            const writeString = (view, offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            // RIFF chunk descriptor
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcm16.length * 2, true);
+            writeString(view, 8, 'WAVE');
+
+            // fmt sub-chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // Audio format (1 for PCM)
+            view.setUint16(22, 1, true); // Number of channels
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true); // Byte rate
+            view.setUint16(32, 2, true); // Block align
+            view.setUint16(34, 16, true); // Bits per sample
+
+            // data sub-chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcm16.length * 2, true);
+
+            // Write PCM data
+            let offset = 44;
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(offset, pcm16[i], true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        };
+        
+        // --- Firebase Functions ---
+        
+        // Authentication and initialization
+        async function initApp() {
+            try {
+                if (initialAuthToken) {
+                    const userCredential = await signInWithCustomToken(auth, initialAuthToken);
+                    userId = userCredential.user.uid;
+                } else {
+                    const userCredential = await signInAnonymously(auth);
+                    userId = userCredential.user.uid;
+                }
+                document.getElementById('user-id-display').textContent = userId;
+
+                await loadChatHistory();
+                isChatInitialized = true;
+                chatInput.disabled = false;
+                sendBtn.disabled = false;
+            } catch (error) {
+                console.error("Firebase authentication failed:", error);
+                document.getElementById('user-id-display').textContent = 'Error';
+                // Add user-facing message for failed authentication
+                addMessage("I'm sorry, there was an issue connecting to the server. Please try refreshing the page.", "ai");
+            }
+        }
+        
+        // Function to create a new chat session
+        const createNewChat = async () => {
+            try {
+                if (!userId) {
+                    console.error("User ID is not available. Cannot create new chat.");
+                    return;
+                }
+                const chatsRef = collection(db, 'artifacts', appId, 'public/data/chats');
+                const newChat = await addDoc(chatsRef, {
+                    createdAt: new Date(),
+                    title: "New Chat",
+                    users: [userId]
+                });
+                
+                currentChatId = newChat.id;
+                
+                // Add the initial message to the new chat
+                await saveMessageToDb("Hello! I am Rana, your personal AI assistant. How can I help you today?", "ai", null);
+
+                await loadChat(newChat.id);
+            } catch (e) {
+                console.error("Error creating new chat:", e);
+                addMessage("I'm sorry, I could not create a new chat at this time. Please try again.", "ai");
+            }
+        };
+
+        // Function to save a message to the current chat session in Firestore
+        const saveMessageToDb = async (content, sender, isImage = false, imageData = null) => {
+            if (!currentChatId) {
+                console.error("No active chat to save message to.");
+                return;
+            }
+            try {
+                const messagesRef = collection(db, 'artifacts', appId, 'public/data/chats', currentChatId, 'messages');
+                await addDoc(messagesRef, {
+                    content: content,
+                    sender: sender,
+                    timestamp: new Date(),
+                    isImage: isImage,
+                    imageData: imageData
+                });
+            } catch (e) {
+                console.error("Error adding message to Firestore:", e);
+                // Do not display a user message here as it could be disruptive during a chat
+            }
+        };
+
+        // Function to load a specific chat session
+        const loadChat = async (chatId) => {
+            currentChatId = chatId;
+            chatMessages.innerHTML = ''; // Clear existing messages
+            const chatRef = doc(db, 'artifacts', appId, 'public/data/chats', chatId);
+            const chatSnap = await getDoc(chatRef);
+            if (chatSnap.exists()) {
+                const title = chatSnap.data().title;
+                console.log("Loading chat:", title);
+            }
+            document.querySelectorAll('#history-list button').forEach(btn => btn.classList.remove('bg-gray-700', 'text-white'));
+            const activeBtn = document.querySelector(`[data-chat-id="${chatId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-gray-700', 'text-white');
+            }
+
+            const messagesRef = collection(db, 'artifacts', appId, 'public/data/chats', currentChatId, 'messages');
+            onSnapshot(messagesRef, (querySnapshot) => {
+                const messages = [];
+                querySnapshot.forEach((doc) => {
+                    messages.push({ ...doc.data(), id: doc.id });
+                });
+                messages.sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
+                renderMessages(messages);
+            });
+        };
+
+        // Function to render messages from Firestore
+        const renderMessages = (messages) => {
+            chatMessages.innerHTML = '';
+            messages.forEach(msg => {
+                addMessage(msg.content, msg.sender, null, msg.isImage);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
+        };
+        
+        // Function to load chat history and listen for updates
+        const loadChatHistory = async () => {
+            if (!userId) {
+                console.log("User not authenticated, cannot load chat history.");
+                return;
+            }
+            const chatsRef = collection(db, 'artifacts', appId, 'public/data/chats');
+            const q = query(chatsRef);
+
+            const querySnapshot = await getDocs(q);
+            const chats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const userChats = chats.filter(chat => chat.users && chat.users.includes(userId));
+            userChats.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
+
+            if (userChats.length === 0) {
+                await createNewChat();
+            } else {
+                currentChatId = userChats[0].id;
+            }
+
+            onSnapshot(q, (querySnapshot) => {
+                historyList.innerHTML = '';
+                const updatedChats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const updatedUserChats = updatedChats.filter(chat => chat.users && chat.users.includes(userId));
+                updatedUserChats.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
+
+                if (updatedUserChats.length === 0) {
+                    historyList.innerHTML = `<div class="text-center text-gray-500 py-4">No chats yet.</div>`;
+                } else {
+                    updatedUserChats.forEach((chatData) => {
+                        const chatId = chatData.id;
+                        const chatButton = document.createElement('button');
+                        chatButton.textContent = chatData.title || `Chat with ${chatId.substring(0, 5)}...`;
+                        chatButton.classList.add(
+                            'w-full', 'text-left', 'px-4', 'py-2', 'rounded-lg', 'font-medium', 'hover:bg-gray-700', 'transition-colors', 'duration-200'
+                        );
+                        chatButton.setAttribute('data-chat-id', chatId);
+
+                        chatButton.addEventListener('click', () => {
+                            loadChat(chatId);
+                        });
+                        
+                        if (chatId === currentChatId) {
+                            chatButton.classList.add('bg-gray-700', 'text-white');
+                        }
+                        historyList.appendChild(chatButton);
+                    });
+                }
+            });
+
+            if (currentChatId) {
+                await loadChat(currentChatId);
+            }
+        };
+
+
+        // --- UI and AI Interaction Logic ---
+
+        // Get references to DOM elements
+        const heroSection = document.getElementById('hero-section');
+        const chatSection = document.getElementById('chat-section');
+        const featuresSection = document.getElementById('features-section');
+        const caseStudiesSection = document.getElementById('case-studies-section');
+        const contactSection = document.getElementById('contact-section');
+        
+        const chatLink = document.getElementById('chat-link');
+        const homeLink = document.getElementById('home-link');
+        const featuresLink = document.getElementById('features-link');
+        const caseStudiesLink = document.getElementById('case-studies-link');
+        const getStartedBtn = document.getElementById('get-started-btn');
+        const learnMoreBtn = document.getElementById('learn-more-btn');
+        const contactLink = document.getElementById('contact-link');
+
+        const closeChatBtn = document.getElementById('close-chat');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const startChatFromFeaturesBtn = document.getElementById('start-chat-from-features');
+        const sendBtn = document.getElementById('send-btn');
+        
+        const contactForm = document.getElementById('contact-form');
+        const formSuccessMessage = document.getElementById('form-success-message');
+
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const historyList = document.getElementById('history-list');
+
+        const uploadBtn = document.getElementById('upload-btn');
+        const fileInput = document.getElementById('file-input');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const imageName = document.getElementById('image-name');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+        const summarizeBtn = document.getElementById('summarize-btn');
+
+        const chatHistorySidebar = document.getElementById('chat-history-sidebar');
+        const toggleHistoryBtn = document.getElementById('toggle-history-btn');
+        const chevronLeftIcon = document.getElementById('chevron-left');
+        const chevronRightIcon = document.getElementById('chevron-right');
+
+        chatInput.disabled = true;
+        sendBtn.disabled = true;
+        
+        const hideAllSections = () => {
+            heroSection.classList.add('hidden');
+            chatSection.classList.add('hidden');
+            featuresSection.classList.add('hidden');
+            caseStudiesSection.classList.add('hidden');
+            contactSection.classList.add('hidden');
+        };
+
+        const showSection = (e, section) => {
+            e.preventDefault();
+            hideAllSections();
+            section.classList.remove('hidden');
+        };
+
+        const addMessage = (content, sender = 'user', id = null, isImage = false, isRaw = false) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('flex', sender === 'user' ? 'justify-end' : 'justify-start');
+            if (id) {
+                messageDiv.id = id;
+            }
+            
+            const messageContentWrapper = document.createElement('div');
+            messageContentWrapper.classList.add('flex', 'flex-col');
+            if (sender === 'ai') {
+                messageContentWrapper.classList.add('chat-message-ai');
+            }
+
+            const messageContent = document.createElement('div');
+            messageContent.classList.add(
+                'p-3',
+                'rounded-xl',
+                'max-w-[80%]',
+                'break-words',
+                sender === 'user' ? 'bg-blue-600' : 'bg-gray-700',
+                sender === 'user' ? 'text-white' : 'text-gray-200',
+                sender === 'user' ? 'rounded-br-none' : 'rounded-bl-none',
+                'markdown-content'
+            );
+            messageContent.style.overflowWrap = 'break-word';
+
+            if (isImage) {
+                const img = document.createElement('img');
+                img.src = content;
+                img.alt = 'Generated image';
+                img.classList.add('rounded-xl', 'max-w-full', 'h-auto');
+                messageContent.appendChild(img);
+            } else if (isRaw) {
+                messageContent.textContent = content;
+            } else {
+                messageContent.innerHTML = typeof marked !== 'undefined' ? marked.parse(content) : content;
+            }
+            
+            messageContentWrapper.appendChild(messageContent);
+            messageDiv.appendChild(messageContentWrapper);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            if (sender === 'ai' && !isImage && !isRaw) {
+                const speakerBtn = document.createElement('button');
+                speakerBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1V9a1 1 0 011-1h1.586l4.707-4.707C10.923 2.215 12 2.476 12 3.823v16.354c0 1.347-1.077 1.583-1.707.953L5.586 15z" />
+                                        </svg>`;
+                speakerBtn.classList.add('ml-2', 'flex-shrink-0');
+                speakerBtn.title = 'Listen to response';
+                speakerBtn.onclick = () => getAITTS(content, speakerBtn);
+                messageContentWrapper.appendChild(speakerBtn);
+            }
+        };
+
+        const getAIResponse = async (userMessage, uploadedImageData = null) => {
+            const loadingMessageId = "loading-message";
+            addMessage("...", "ai", loadingMessageId, false, true);
+            sendBtn.classList.add('is-generating');
+            
+            const isImageCreationRequest = userMessage.toLowerCase().includes("create image") ||
+                                           userMessage.toLowerCase().includes("generate image") ||
+                                           userMessage.toLowerCase().includes("modify image");
+
+            try {
+                if (uploadedImageData && isImageCreationRequest) {
+                    await getAIImageToImageResponse(userMessage, uploadedImageData, loadingMessageId);
+                } else if (uploadedImageData) {
+                    await getAIMultiModalText(userMessage, uploadedImageData, loadingMessageId);
+                } else {
+                    await getAIText(userMessage, loadingMessageId);
+                }
+            } catch (error) {
+                console.error("An unexpected error occurred during AI response generation:", error);
+                const loadingDiv = document.getElementById(loadingMessageId);
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                addMessage("An unexpected error occurred. Please try again.", "ai");
+            } finally {
+                sendBtn.classList.remove('is-generating');
+            }
+        };
+
+        const getAIText = async (userMessage, loadingMessageId) => {
+            const payload = {
+                contents: [{ parts: [{ text: userMessage }] }],
+                systemInstruction: {
+                    parts: [{ text: "You are a world-class AI agent specialized in solving problems and creating code. Your purpose is to provide perfect, accurate, and detailed answers to user questions, with a primary focus on code generation, explanation, and debugging. When a user asks for code, provide a complete, well-commented, and runnable snippet within a markdown code block. Always format code with proper syntax highlighting." }]
+                }
+            };
+
+            try {
+                const response = await fetch(TEXT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const aiResponse = result.candidates[0].content.parts[0].text;
+                
+                const loadingDiv = document.getElementById(loadingMessageId);
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+
+                const chatRef = doc(db, 'artifacts', appId, 'public/data/chats', currentChatId);
+                const chatSnap = await getDoc(chatRef);
+                if (chatSnap.exists() && chatSnap.data().title === "New Chat") {
+                    await generateChatTitle(userMessage, chatRef);
+                }
+                
+                saveMessageToDb(userMessage, 'user');
+                saveMessageToDb(aiResponse, 'ai');
+
+                addMessage(aiResponse, 'ai');
+
+            } catch (error) {
+                console.error("Failed to get AI text response:", error);
+                const loadingDiv = document.getElementById(loadingMessageId);
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                addMessage("I'm sorry, I'm unable to respond at this time. Please try again later.", "ai");
+            }
+        };
+
+        const getAIImageToImageResponse = async (userMessage, imageData, loadingMessageId) => {
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: userMessage },
+                        { inlineData: { mimeType: "image/png", data: imageData } }
+                    ]
+                }],
+                generationConfig: {
+                    responseModalities: ["TEXT", "IMAGE"]
+                },
+            };
+            
+            try {
+                const response = await fetch(IMAGE_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+
+                const loadingDiv = document.getElementById(loadingMessageId);
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+
+                if (base64Data) {
+                    const imageUrl = `data:image/png;base64,${base64Data}`;
+                    addMessage(imageUrl, 'ai', null, true);
+                    
+                    saveMessageToDb(`Image-to-image request: ${userMessage}`, 'user', true, imageData);
+                    saveMessageToDb(imageUrl, 'ai', true);
+                } else {
+                    addMessage("I'm sorry, I could not generate an image from that request. Please try a different prompt.", "ai");
+                    saveMessageToDb(`Image-to-image request: ${userMessage}`, 'user', true, imageData);
+                    saveMessageToDb("I'm sorry, I could not generate an image from that request. Please try a different prompt.", 'ai');
+                }
+            } catch (error) {
+                console.error("Failed to get AI image response:", error);
+                const loadingDiv = document.getElementById(loadingMessageId);
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                addMessage("I'm sorry, I'm unable to generate an image at this time. Please try again later.", "ai");
+                saveMessageToDb(`Image-to-image request: ${userMessage}`, 'user', true, imageData);
+                saveMessageToDb("I'm sorry, I'm unable to generate an image at this time. Please try again later.", 'ai');
+            }
+        };
+        
+        const getAIMultiModalText = async (userMessage, imageData, loadingMessageId) => {
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: userMessage },
+                        { inlineData: { mimeType: "image/png", data: imageData } }
+                    ]
+                }],
+            };
+            
+            try {
+                const response = await fetch(IMAGETEXT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const aiResponse = result.candidates[0].content.parts[0].text;
+                
+                const loadingDiv = document.getElementById(loadingMessageId);
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                
+                const chatRef = doc(db, 'artifacts', appId, 'public/data/chats', currentChatId);
+                const chatSnap = await getDoc(chatRef);
+                if (chatSnap.exists() && chatSnap.data().title === "New Chat") {
+                    await generateChatTitle(userMessage, chatRef);
+                }
+
+                saveMessageToDb(userMessage, 'user', true, imageData);
+                saveMessageToDb(aiResponse, 'ai');
+
+                addMessage(aiResponse, 'ai');
+
+            } catch (error) {
+                console.error("Failed to get AI text response:", error);
+                const loadingDiv = document.getElementById(loadingMessageId);
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                addMessage("I'm sorry, I'm unable to respond at this time. Please try again later.", "ai");
+            }
+        };
+
+        const getAITTS = async (text, btn) => {
+            btn.disabled = true;
+            btn.innerHTML = `<div class="loading-spinner w-4 h-4"></div>`;
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            try {
+                const payload = {
+                    contents: [{
+                        parts: [{ text: text }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                             voiceConfig: {
+                                // This voice is hardcoded but could be a user setting
+                                prebuiltVoiceConfig: { voiceName: "Iapetus" }
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                const response = await fetch(TTS_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)[1], 10);
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+
+                    audio.onended = () => {
+                        btn.disabled = false;
+                        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1V9a1 1 0 011-1h1.586l4.707-4.707C10.923 2.215 12 2.476 12 3.823v16.354c0 1.347-1.077 1.583-1.707.953L5.586 15z" />
+                                        </svg>`;
+                        URL.revokeObjectURL(audioUrl); // Free up memory after use
+                    };
+                } else {
+                     console.error("Invalid or missing audio data from API.");
+                     btn.disabled = false;
+                     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1V9a1 1 0 011-1h1.586l4.707-4.707C10.923 2.215 12 2.476 12 3.823v16.354c0 1.347-1.077 1.583-1.707.953L5.586 15z" />
+                                        </svg>`;
+                     addMessage("I couldn't generate the voice for this message. Please try again later.", "ai");
+                }
+            } catch (error) {
+                console.error("Error during TTS:", error);
+                btn.disabled = false;
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1V9a1 1 0 011-1h1.586l4.707-4.707C10.923 2.215 12 2.476 12 3.823v16.354c0 1.347-1.077 1.583-1.707.953L5.586 15z" />
+                                        </svg>`;
+                addMessage("I couldn't generate the voice for this message. Please try again later.", "ai");
+            }
+        };
+
+        const summarizeChat = async () => {
+             if (!currentChatId || !isChatInitialized) {
+                console.error("Chat is not ready to be summarized.");
+                addMessage("I'm sorry, the chat is not ready to be summarized.", "ai");
+                return;
+            }
+
+            const messagesRef = collection(db, 'artifacts', appId, 'public/data/chats', currentChatId, 'messages');
+            const querySnapshot = await getDocs(messagesRef);
+            const messages = [];
+            querySnapshot.forEach((doc) => messages.push(doc.data()));
+            messages.sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
+
+            if (messages.length === 0) {
+                addMessage("There is no conversation to summarize.", "ai");
+                return;
+            }
+
+            const conversationText = messages.map(msg => {
+                const content = msg.isImage ? `[${msg.sender === 'user' ? 'User sent an image' : 'AI generated an image'}]` : msg.content;
+                return `${msg.sender}: ${content}`;
+            }).join('\n');
+
+            const payload = {
+                contents: [{
+                    parts: [{
+                        text: `Summarize the following conversation in 3 key bullet points. Do not include any conversational filler, just the summary:\n\n${conversationText}`
+                    }]
+                }]
+            };
+
+            const loadingMessageId = "summarize-loading";
+            addMessage("Summarizing...", "ai", loadingMessageId, false, true);
+
+            try {
+                const response = await fetch(TEXT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                const summary = result.candidates[0].content.parts[0].text;
+                document.getElementById(loadingMessageId).remove();
+                addMessage(summary, 'ai');
+                await saveMessageToDb(`Summarize request`, 'user');
+                await saveMessageToDb(summary, 'ai');
+            } catch (error) {
+                console.error("Failed to summarize chat:", error);
+                document.getElementById(loadingMessageId).remove();
+                addMessage("I'm sorry, I'm unable to summarize the chat at this time. Please try again.", "ai");
+            }
+        };
+
+        const generateChatTitle = async (message, chatRef) => {
+            try {
+                const titlePayload = {
+                    contents: [{
+                        parts: [{
+                            text: `Please create a concise, 5-word title for the following chat based on the user's first message. Do not include any conversational filler, just the title. Message: "${message}"`
+                        }]
+                    }]
+                };
+
+                const response = await fetch(TEXT_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(titlePayload)
+                });
+
+                if (!response.ok) throw new Error("Title generation failed");
+
+                const result = await response.json();
+                const newTitle = result.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/^["']|["']$/g, '') || "New Chat";
+                
+                await updateDoc(chatRef, { title: newTitle });
+            } catch (error) {
+                console.error("Failed to generate and update chat title:", error);
+                await updateDoc(chatRef, { title: "Chat on " + new Date().toLocaleDateString() });
+            }
+        };
+
+        initApp();
+
+        // --- Fix for navigation buttons ---
+        // New, more robust navigation logic.
+        
+        // This function will hide all sections and show the target section.
+        const navigateToSection = (targetSection) => {
+            hideAllSections();
+            targetSection.classList.remove('hidden');
+        };
+
+        // Event listener for the "Get Started" button
+        if (getStartedBtn) {
+            getStartedBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(chatSection);
+            });
+        }
+
+        // Event listener for the "Learn More" button
+        if (learnMoreBtn) {
+            learnMoreBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(featuresSection);
+            });
+        }
+
+        // Event listeners for other navigation links
+        if (chatLink) {
+            chatLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(chatSection);
+            });
+        }
+        
+        if (homeLink) {
+            homeLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(heroSection);
+            });
+        }
+
+        if (featuresLink) {
+            featuresLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(featuresSection);
+            });
+        }
+
+        if (caseStudiesLink) {
+            caseStudiesLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(caseStudiesSection);
+            });
+        }
+
+        if (contactLink) {
+            contactLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(contactSection);
+            });
+        }
+
+        if (startChatFromFeaturesBtn) {
+            startChatFromFeaturesBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(chatSection);
+            });
+        }
+        
+        if (closeChatBtn) {
+            closeChatBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigateToSection(heroSection);
+            });
+        }
+
+        newChatBtn.addEventListener('click', createNewChat);
+        summarizeBtn.addEventListener('click', summarizeChat);
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!isChatInitialized) {
+                console.log("Chat system is not yet initialized. Please wait.");
+                return;
+            }
+
+            const userMessage = chatInput.value.trim();
+            if (userMessage || uploadedImageData) {
+                if (!sendBtn.classList.contains('is-generating')) {
+                    chatInput.value = '';
+                    getAIResponse(userMessage, uploadedImageData);
+                    uploadedImageData = null;
+                    imagePreviewContainer.classList.add('hidden');
+                    fileInput.value = null; // Reset file input
+                }
+            }
+        });
+        
+        contactForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            // IMPORTANT: This form currently only shows a success message and does not send data.
+            // This is a placeholder for a future backend implementation.
+            const formData = new FormData(contactForm);
+            const data = Object.fromEntries(formData.entries());
+            console.log("Form data received, would be sent to a backend:", data);
+            formSuccessMessage.classList.remove('hidden');
+            contactForm.reset(); 
+        });
+
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    // Check if file is an image before processing
+                    if (file.type.startsWith('image/')) {
+                        const base64Data = reader.result.split(',')[1];
+                        uploadedImageData = base64Data;
+                        imagePreview.src = reader.result;
+                        imageName.textContent = file.name;
+                        imagePreviewContainer.classList.remove('hidden');
+                    } else {
+                        // Handle non-image file uploads
+                        console.error("Please upload an image file.");
+                        uploadedImageData = null;
+                        fileInput.value = null;
+                        imagePreviewContainer.classList.add('hidden');
+                    }
+                };
+                reader.onerror = (error) => {
+                    console.error("Error reading file:", error);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        removeImageBtn.addEventListener('click', () => {
+            uploadedImageData = null;
+            fileInput.value = null;
+            imagePreviewContainer.classList.add('hidden');
+            imagePreview.src = '';
+            imageName.textContent = '';
+        });
+
+        toggleHistoryBtn.addEventListener('click', () => {
+            isHistoryMinimized = !isHistoryMinimized;
+            chatHistorySidebar.classList.toggle('minimized', isHistoryMinimized);
+            chevronLeftIcon.classList.toggle('hidden', isHistoryMinimized);
+            chevronRightIcon.classList.toggle('hidden', !isHistoryMinimized);
+        });
+    </script>
+</body>
+</html>
